@@ -14,9 +14,9 @@ SYSTEM_TYPE="vircon32"
 CONFIG="conf"
 MEMORY="${SYSTEM}/memory"
 REGISTERS="${SYSTEM}/registers"
-DICTIONARY="${MEMORY}/dictionary"
-RETURNSTACK="${MEMORY}/return_stack"
-PARAMETERSTACK="${MEMORY}/parameter_stack"
+DICTIONARY="${SYSTEM}/dictionary"
+RETURNSTACK="${SYSTEM}/return_stack"
+PARAMETERSTACK="${SYSTEM}/parameter_stack"
 
 ########################################################################################
 ##
@@ -34,10 +34,26 @@ fi
 ##
 function init()
 {
-    rm    -rf      ${SYSTEM}     ${REGISTERS}
-    mkdir -p       ${SYSTEM}     ${MEMORY}    ${RETURNSTACK} ${PARAMETERSTACK}
-    mkdir -p       ${DICTIONARY} ${REGISTERS}
+    rm    -rf      ${SYSTEM}
+    mkdir -p       ${SYSTEM} ${REGISTERS}
     chmod -R  0700 ${SYSTEM}
+##  echo  -n                                                              >  ${MEMORY}
+
+    base=$(echo  "${RETURNSTACKBASE}"              | cut -d'x' -f2)
+    base=$(echo  "obase=10; ibase=16; ${base}"     | bc -q)
+##  bound=$(echo "${RETURNSTACKBOUND}"             | cut -d'x' -f2)
+##  bound=$(echo "obase=10; ibase=16; ${bound}"    | bc -q)
+
+	echo -n "[init] Initializing memory ... "
+
+    dd if=/dev/zero of=${MEMORY} bs=${WORDSIZE} count=$((${base}+1))     2>  /dev/null
+
+	echo    "OK"
+##  for ((index=${bound}; index<${base}; index++)); do
+##      addr=$(echo "obase=16; ibase=10; ${index}" | bc -q)
+##      addr=$(printf "%.8X\n" "0x${addr}")
+##      echo "${addr}: 00 00 00 00"
+##  done                                                                  >> ${MEMORY}
 }
 
 ########################################################################################
@@ -56,18 +72,7 @@ function clearstack()
         rm -f ${RETURNSTACK}/*
         echo "${RETURNSTACKBASE}"                                   >  ${REGISTERS}/BP
         echo "${RETURNSTACKBASE}"                                   >  ${REGISTERS}/SP
-        base=$(echo  "${RETURNSTACKBASE}"           | cut -d'x' -f2)
-        base=$(echo  "obase=10; ibase=16; ${base}"  | bc -q)
-        bound=$(echo "${RETURNSTACKBOUND}"          | cut -d'x' -f2)
-        bound=$(echo "obase=10; ibase=16; ${bound}" | bc -q)
-
-        for ((index=${bound}; index<${base}; index++)); do
-            addr=$(echo "obase=16; ibase=10; ${index}" | bc -q)
-            addr=$(printf "%.8X\n" "0x${addr}")
-            ADDR="${RETURNSTACK}/${addr}"
-            echo "00 00 00 00"                                      >  ${ADDR}
-        done
-        chmod -R 0600 ${RETURNSTACK}/*
+        #chmod -R 0600 ${RETURNSTACK}/*
     fi
     echo -n
 }
@@ -107,6 +112,7 @@ function interpret()
 ##
 input=
 init
+echo "READY"
 while [ "${QUIT}" = "false" ]; do
     clearstack RETURN
     processinput
